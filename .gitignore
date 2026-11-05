@@ -1,1 +1,4 @@
 .venv
+data/
+trajectories.pt
+__pycache__/

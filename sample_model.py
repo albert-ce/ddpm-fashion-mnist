@@ -31,11 +31,12 @@ def to_image(x):
     return (x.clamp(-1, 1) + 1) / 2
 
 @torch.no_grad()
-def sample(n_samples, generator=None, snapshot_every=None):
+def sample(n_samples, snapshot_every=None, n_progress_samples=None, generator=None, verbose=True):
     x = torch.randn((n_samples, 1, 28, 28), device=device, generator=generator)
     snapshots = []
     if snapshot_every is not None:
-        snapshots.append(to_image(x[:num_progress_samples]).cpu())
+        n_progress_samples = n_progress_samples or n_samples
+        snapshots.append(x[:n_progress_samples].cpu())
 
     for t in reversed(range(timesteps)):
         t_tensor = torch.full((n_samples,), t, device=device, dtype=torch.long)
@@ -55,21 +56,22 @@ def sample(n_samples, generator=None, snapshot_every=None):
         x = (1 / torch.sqrt(alpha)) * (x - (beta / torch.sqrt(1 - alpha_cumprod)) * predicted_noise) + torch.sqrt(beta) * noise
 
         if snapshot_every is not None and (t % snapshot_every == 0):
-            snapshots.append(to_image(x[:num_progress_samples]).cpu())
+            snapshots.append(x[:n_progress_samples].cpu())
 
-        if t % 100 == 0:
+        if verbose and t % 100 == 0:
             print(f"t = {t}")
 
-    return to_image(x), snapshots
+    return x, snapshots
 
 
-generator = torch.Generator(device=device).manual_seed(seed)
-samples, snapshots = sample(num_samples, generator=generator, snapshot_every=timesteps // num_progress_frames)
+if __name__ == "__main__":
+    generator = torch.Generator(device=device).manual_seed(seed)
+    samples, snapshots = sample(num_samples, snapshot_every=timesteps // num_progress_frames, n_progress_samples=num_progress_samples, generator=generator)
 
-save_image(samples, grid_path, nrow=8)
-print(f"Saved {num_samples} samples to {grid_path}")
+    save_image(to_image(samples), grid_path, nrow=8)
+    print(f"Saved {num_samples} samples to {grid_path}")
 
-progress = torch.stack(snapshots, dim=1) # (n_samples, n_frames, 1, 28, 28)
-progress = progress.reshape(-1, 1, 28, 28)
-save_image(progress, progress_path, nrow=len(snapshots))
-print(f"Saved denoising progress to {progress_path}")
+    progress = to_image(torch.stack(snapshots, dim=1)) # (n_samples, n_frames, 1, 28, 28)
+    progress = progress.reshape(-1, 1, 28, 28)
+    save_image(progress, progress_path, nrow=len(snapshots))
+    print(f"Saved denoising progress to {progress_path}")
