@@ -3,14 +3,16 @@ from diffusers import UNet2DModel
 from pathlib import Path
 from torchvision.utils import save_image
 
+ROOT = Path(__file__).parent
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using device: {device}")
 
-model_dir = Path("./trained-diffusion-model-fashion-mnist")
+model_dir = ROOT / "trained-diffusion-model-fashion-mnist"
 num_samples = 64
 seed = 0
-grid_path = "samples_grid.png"
-progress_path = "samples_progress.png"
+grid_path = ROOT / "samples_figures" / "samples_grid.png"
+progress_path = ROOT / "samples_figures" / "denoising_progress.png"
 num_progress_samples = 8
 num_progress_frames = 10
 
