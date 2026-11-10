@@ -1,10 +1,14 @@
 import csv
 import time
+from pathlib import Path
 
 import torch
 import torch.nn.functional as F
 from diffusers import UNet2DModel
 from torchvision import datasets, transforms
+
+ROOT = Path(__file__).resolve().parent
+MODEL_DIR = ROOT / "trained-diffusion-model-fashion-mnist"  # read by sample_model.py and the visualizations
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using device: {device}")
@@ -18,7 +22,7 @@ transform = transforms.Compose(
     ]
 )
 train_loader = torch.utils.data.DataLoader(
-    datasets.FashionMNIST(root="./data", train=True, download=True, transform=transform),
+    datasets.FashionMNIST(root=ROOT / "data", train=True, download=True, transform=transform),
     batch_size=batch_size,
     shuffle=True,
     num_workers=2,
@@ -28,7 +32,7 @@ train_loader = torch.utils.data.DataLoader(
 lr = 1e-4
 total_steps = 100_000
 log_every = 500
-log_file = "training_log.csv"
+log_file = ROOT / "training_log.csv"
 
 model = UNet2DModel(
     sample_size=28,
@@ -99,4 +103,4 @@ for step in range(1, total_steps + 1):
 
 log_f.close()
 
-model.save_pretrained("trained_diffusion_model_fashion_mnist")
+model.save_pretrained(MODEL_DIR)

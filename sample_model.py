@@ -11,8 +11,8 @@ print(f"Using device: {device}")
 model_dir = ROOT / "trained-diffusion-model-fashion-mnist"
 num_samples = 64
 seed = 0
-grid_path = ROOT / "samples_figures" / "samples_grid.png"
-progress_path = ROOT / "samples_figures" / "denoising_progress.png"
+grid_path = ROOT / "figures" / "samples" / "samples_grid.png"
+progress_path = ROOT / "figures" / "samples" / "denoising_progress.png"
 num_progress_samples = 8
 num_progress_frames = 10
 

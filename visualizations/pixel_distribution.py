@@ -27,7 +27,8 @@ PIXEL = (7, 7)
 # Pixel pair for the 2D figure, or None to skip it. The two shoulders are strongly correlated
 # (0.67): either both are background or both are garment.
 PIXEL_PAIR = ((7, 7), (7, 20))
-TRAJECTORIES_PATH = Path("trajectories.pt")  # written by sample_trajectories.py
+ROOT = Path(__file__).resolve().parent.parent  # repository root (this file is in visualizations/)
+TRAJECTORIES_PATH = ROOT / "trajectories.pt"  # written by sample_trajectories.py
 # t of the columns of both figures (must be saved frames). A single pixel (std ~0.6) is drowned
 # by the noise much earlier than a PCA component (std ~9), so most columns go to small t:
 # the noise std sqrt(1 - ab) is 0.08, 0.14, 0.26, 0.43, 0.58, 0.78 at t = 20 ... 300.
@@ -36,13 +37,13 @@ VALUE_RANGE = (-3.5, 3.5)
 N_BINS = 60  # value bins, histograms
 N_BINS_2D = 40
 SEED = 0
-OUT_DIR = Path("pca_figures")
+OUT_DIR = ROOT / "figures" / "distributions"
 
-OUT_DIR.mkdir(exist_ok=True)
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ---------------------------------------------------------------- data
-dataset = datasets.FashionMNIST(root="./data", train=True, download=True)
+dataset = datasets.FashionMNIST(root=ROOT / "data", train=True, download=True)
 images = dataset.data.double() / 255 * 2 - 1  # (60000, 28, 28) in [-1, 1], as in training
 mean_image = images.mean(0).numpy()
 
@@ -140,7 +141,7 @@ axes[1, -1].legend(fontsize=7, loc="upper right")
 fig.suptitle(f"Marginal distribution of pixel {PIXEL} ({n_samples} values per panel; dotted = [-1, 1])")
 fig.tight_layout()
 out = OUT_DIR / f"pixel_{row}_{col}_histograms.png"
-fig.savefig(out, dpi=150)
+fig.savefig(out, dpi=150, transparent=True)
 print(f"Saved {out}")
 
 
@@ -182,5 +183,5 @@ if PIXEL_PAIR is not None:
     )
     fig.tight_layout()
     out = OUT_DIR / f"pixels_{r1}_{c1}_{r2}_{c2}_joint.png"
-    fig.savefig(out, dpi=150)
+    fig.savefig(out, dpi=150, transparent=True)
     print(f"Saved {out}")

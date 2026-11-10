@@ -18,18 +18,19 @@ import torch
 from torchvision import datasets
 
 N_COMPONENTS = 2  # PCA dimension (the figure shows the first two components)
-TRAJECTORIES_PATH = Path("trajectories.pt")  # written by sample_trajectories.py
+ROOT = Path(__file__).resolve().parent.parent  # repository root (this file is in visualizations/)
+TRAJECTORIES_PATH = ROOT / "trajectories.pt"  # written by sample_trajectories.py
 TIMESTEPS = None  # list of t to show (must be saved frames), or None to pick them automatically
 N_COLUMNS = 8  # number of t when picked automatically
 SEED = 0
-OUT_DIR = Path("pca_figures")
+OUT_DIR = ROOT / "figures" / "distributions"
 
 assert N_COMPONENTS >= 2, "The figure needs at least two components"
-OUT_DIR.mkdir(exist_ok=True)
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ---------------------------------------------------------------- data + PCA
-dataset = datasets.FashionMNIST(root="./data", train=True, download=True)
+dataset = datasets.FashionMNIST(root=ROOT / "data", train=True, download=True)
 # Same preprocessing as training: ToTensor -> [0, 1], Normalize(0.5, 0.5) -> [-1, 1]
 X = dataset.data.reshape(len(dataset), -1).double() / 255 * 2 - 1  # (60000, 784)
 
@@ -116,5 +117,5 @@ fig.suptitle(
 )
 fig.tight_layout()
 out = OUT_DIR / "forward_reverse_pca.png"
-fig.savefig(out, dpi=150)
+fig.savefig(out, dpi=150, transparent=True)
 print(f"Saved {out}")
