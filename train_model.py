@@ -64,6 +64,7 @@ batches = infinite(train_loader)
 log_f = open(log_file, "w", newline="")
 log = csv.writer(log_f)
 log.writerow(["step", "loss", "lr", "grad_norm", "steps_per_sec"])
+loss_sum = torch.zeros((), device=device)
 t0 = time.time()
 
 model.train()
@@ -84,9 +85,11 @@ for step in range(1, total_steps + 1):
     grads = [p.grad for p in model.parameters() if p.grad is not None]
     grad_norm = torch.nn.utils.get_total_norm(grads)
     optimizer.step()
+    loss_sum += loss.detach()
 
     if step % log_every == 0:
-        loss_val, gnorm_val = loss.item(), grad_norm.item()
+        loss_val, gnorm_val = (loss_sum / log_every).item(), grad_norm.item()
+        loss_sum.zero_()
         lr_val = optimizer.param_groups[0]["lr"]
         steps_per_sec = log_every / (time.time() - t0)
         print(f"step {step:>7d} | loss {loss_val:.4f} | lr {lr_val:.2e} | gnorm {gnorm_val:.3f} | {steps_per_sec:.2f} steps/s")
