@@ -12,9 +12,6 @@ model_dir = ROOT / "trained-diffusion-model-fashion-mnist"
 num_samples = 64
 seed = 0
 grid_path = ROOT / "figures" / "samples" / "samples_grid.png"
-progress_path = ROOT / "figures" / "samples" / "denoising_progress.png"
-num_progress_samples = 8
-num_progress_frames = 10
 
 beta_start = 1e-4
 beta_end = 0.02
@@ -29,7 +26,6 @@ model.eval()
 
 
 def to_image(x):
-    # Undo Normalize((0.5,), (0.5,)): [-1, 1] -> [0, 1]
     return (x.clamp(-1, 1) + 1) / 2
 
 @torch.no_grad()
@@ -48,7 +44,6 @@ def sample(n_samples, snapshot_every=None, n_progress_samples=None, generator=No
         alpha_cumprod = alphas_cumprod[t]
         beta = betas[t]
 
-        # We add noise to make x_{t-1} a true sample of N(mu, beta_tilde_t·I), keeping its variance consistent.
         if t > 0:
             noise = torch.randn(x.shape, device=device, generator=generator)
         else:
@@ -68,12 +63,7 @@ def sample(n_samples, snapshot_every=None, n_progress_samples=None, generator=No
 
 if __name__ == "__main__":
     generator = torch.Generator(device=device).manual_seed(seed)
-    samples, snapshots = sample(num_samples, snapshot_every=timesteps // num_progress_frames, n_progress_samples=num_progress_samples, generator=generator)
+    samples, _ = sample(num_samples, generator=generator)
 
     save_image(to_image(samples), grid_path, nrow=8)
     print(f"Saved {num_samples} samples to {grid_path}")
-
-    progress = to_image(torch.stack(snapshots, dim=1)) # (n_samples, n_frames, 1, 28, 28)
-    progress = progress.reshape(-1, 1, 28, 28)
-    save_image(progress, progress_path, nrow=len(snapshots))
-    print(f"Saved denoising progress to {progress_path}")

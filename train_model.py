@@ -8,7 +8,7 @@ from diffusers import UNet2DModel
 from torchvision import datasets, transforms
 
 ROOT = Path(__file__).resolve().parent
-MODEL_DIR = ROOT / "trained-diffusion-model-fashion-mnist"  # read by sample_model.py and the visualizations
+MODEL_DIR = ROOT / "trained-diffusion-model-fashion-mnist"
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using device: {device}")
@@ -58,7 +58,6 @@ sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod)
 sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - alphas_cumprod)
 
 def infinite(loader):
-    """Yield batches forever; the DataLoader reshuffles every time it starts a new pass over the data."""
     while True:
         for data, _ in loader:
             yield data

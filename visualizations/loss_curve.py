@@ -1,17 +1,9 @@
-"""
-Training loss vs. step, from training_log.csv (written by train_model.py).
-
-Each row's loss is the mean over the logging window (500 steps x 32 images), so it is plotted as it
-is, with no extra smoothing. The y axis is logarithmic so that both the fast initial drop and the
-slow decline afterwards are visible in one panel. Writes figures/training/loss_curve.png.
-"""
-
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-ROOT = Path(__file__).resolve().parent.parent  # repository root (this file is in visualizations/)
+ROOT = Path(__file__).resolve().parent.parent
 LOG_PATH = ROOT / "training_log.csv"
 OUT_PATH = ROOT / "figures" / "training" / "loss_curve.png"
 BLUE, INK, MUTED, GRID = "#2a78d6", "#0b0b0b", "#52514e", "#e4e3df"

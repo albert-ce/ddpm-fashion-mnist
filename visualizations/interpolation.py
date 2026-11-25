@@ -1,26 +1,3 @@
-"""
-Interpolation in the diffusion latent space (Ho, Jain & Abbeel 2020, Sec. 4.3) on Fashion-MNIST.
-
-For two test images x_0, x_0':
-  1. encode both to step t with the forward process, x_t = sqrt(ab_t) x_0 + sqrt(1 - ab_t) eps,
-     using the SAME eps for both (stochastic encoder);
-  2. blend linearly, xbar_t = (1 - lam) x_t + lam x_t', lam = 0, 0.1, ..., 1;
-  3. decode with the learned reverse process p(x_{t-1} | x_t) from t down to 0, with the SAME
-     reverse noise for every lam, so the only thing that changes along a row is lam.
-
-Because eps is shared, xbar_t equals the forward-noised pixel blend (1 - lam) x_0 + lam x_0': the
-reverse process is what turns that ghostly superposition into a single plausible garment.
-t trades fidelity for semantic mixing: small t stays close to the pixel blend, large t lets the
-model invent more, and t = 1000 is (almost) pure noise, so the originals barely matter.
-
-Timestep convention as in sample_trajectories.py: x_t (1-indexed) is noised with alphas_cumprod[t - 1]
-and then decoded with loop steps t - 1, ..., 0 of the reverse process.
-
-Results are cached in CACHE_PATH; delete it to recompute (~15-20 min on CPU). Writes
-figures/analysis/interpolation_slide.png (a diagram of the process for one pair at T_MAIN, then more
-examples).
-"""
-
 import sys
 from pathlib import Path
 
@@ -31,8 +8,8 @@ import numpy as np
 import torch
 from torchvision import datasets, transforms
 
-ROOT = Path(__file__).resolve().parent.parent  # repository root (this file is in visualizations/)
-sys.path.insert(0, str(ROOT))  # to import sample_model from the repository root
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 
 from sample_model import alphas, alphas_cumprod, betas, device, model
 
@@ -41,15 +18,12 @@ CACHE_PATH = ROOT / "cache" / "interpolation.npz"
 SEED = 0
 T_MAIN = 250
 LAMBDAS_MAIN = np.round(np.linspace(0, 1, 11), 2)  # steps of 0.1
-FWD_STEPS = [0, 50, 100, 150, 200, 250]  # forward-process frames drawn in the diagram (last = T_MAIN)
-REV_SNAPS = [125]  # reverse-process frames drawn between xbar_t and the result
+FWD_STEPS = [0, 50, 100, 150, 200, 250]  # last = T_MAIN
+REV_SNAPS = [125]
 LAM_DIAGRAM = 0.5
 CLASSES = ["T-shirt/top", "Trouser", "Pullover", "Dress", "Coat",
            "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"]
-# (class of x_0, class of x_0'): first test image of each class (the second one for x_0' when both
-# classes are equal).
 PAIRS = [(4, 2)]
-# Extra examples drawn below the diagram: (class, n, class', n') = the n-th test image of each class.
 EXTRA_PAIRS = [(1, 2, 1, 4), (7, 6, 9, 15), (5, 35, 9, 9), (4, 36, 2, 2)]
 INK, MUTED, GRID, BLUE = "#0b0b0b", "#52514e", "#e4e3df", "#2a78d6"
 
@@ -61,7 +35,6 @@ of_class = {c: [i for i, y in enumerate(labels) if y == c] for c in range(10)}
 
 
 def load_pairs(pairs):
-    """(n_pairs, 1, 28, 28) tensors in [-1, 1] for x_0 and x_0'."""
     xa = torch.stack([test[of_class[a][0]][0] for a, _ in pairs])
     xb = torch.stack([test[of_class[b][int(a == b)]][0] for a, b in pairs])
     return xa, xb
@@ -78,13 +51,11 @@ x0_a, x0_b = load_pairs(PAIRS)
 
 @torch.no_grad()
 def interpolate(xa, xb, t, lambdas, snaps=()):
-    """xa, xb: (P, 1, 28, 28). Returns decoded (P, L, 28, 28), the blended latents (P, L, 28, 28) and
-    the reverse-process states x_s for s in snaps (n_snaps, P, L, 28, 28)."""
     g = torch.Generator().manual_seed(SEED)
     P, L = len(xa), len(lambdas)
     lam = torch.tensor(lambdas, dtype=torch.float32).view(1, L, 1, 1, 1)
     ab = alphas_cumprod[t - 1].cpu()
-    eps = torch.randn((1, 1, 1, 28, 28), generator=g)  # shared by both images and all pairs
+    eps = torch.randn((1, 1, 1, 28, 28), generator=g)  # shared eps
     xt_a = ab.sqrt() * xa[:, None] + (1 - ab).sqrt() * eps
     xt_b = ab.sqrt() * xb[:, None] + (1 - ab).sqrt() * eps
     x = ((1 - lam) * xt_a + lam * xt_b).reshape(P * L, 1, 28, 28)
@@ -96,7 +67,7 @@ def interpolate(xa, xb, t, lambdas, snaps=()):
         eps_hat = model(x, ti).sample
         z = torch.randn((1, 1, 28, 28), generator=g).to(device) if i > 0 else 0  # shared reverse noise
         x = (x - betas[i] / (1 - alphas_cumprod[i]).sqrt() * eps_hat) / alphas[i].sqrt() + betas[i].sqrt() * z
-        if i in snaps:  # after loop step i the state is x_i
+        if i in snaps:
             states[i] = x.cpu().reshape(P, L, 28, 28).numpy()
         if i % 100 == 0:
             print(f"  t = {t}: step {i}")
@@ -105,11 +76,9 @@ def interpolate(xa, xb, t, lambdas, snaps=()):
 
 
 def shared_eps():
-    """The forward-process noise interpolate() draws first from its generator."""
     return torch.randn((28, 28), generator=torch.Generator().manual_seed(SEED)).numpy()
 
 
-# Results are cached and recomputed only when their settings change.
 c = dict(np.load(CACHE_PATH)) if CACHE_PATH.exists() else {}
 main_key = dict(t_main=T_MAIN, pairs=np.array(PAIRS), lambdas_main=LAMBDAS_MAIN, rev_snaps=np.array(REV_SNAPS))
 
@@ -126,7 +95,7 @@ else:
     c.update(main_key, main=main, latent_main=latent_main, rev_main=rev_main)
 
 
-def extra_key(q):  # one cache entry per extra pair, so the list can be edited without recomputing
+def extra_key(q):
     return f"extra_t{T_MAIN}_l{len(LAMBDAS_MAIN)}_" + "_".join(map(str, q))
 
 
@@ -154,14 +123,11 @@ def show(ax, img, edge=GRID, lw=1):
         sp.set_linewidth(lw)
 
 
-# Figure 1 (PAIRS[0] only): the process for lam = LAM_DIAGRAM on top, the whole interpolation below.
-#   row 0: forward process of x_0 (left -> centre) and of x_0' (right -> centre), shared eps
-#   rows 1..: xbar_t = (1 - lam) x_t + lam x_t', then the reverse process going down column k_c
-#   last row: x_0 | results for every lam | x_0', the lam = LAM_DIAGRAM result is the end of the column
+# Figure
 ORANGE = "#eb6834"
 L = len(LAMBDAS_MAIN)
 n_cols = L + 2
-k_c = 1 + int(np.argmin(np.abs(LAMBDAS_MAIN - LAM_DIAGRAM)))  # column of LAM_DIAGRAM
+k_c = 1 + int(np.argmin(np.abs(LAMBDAS_MAIN - LAM_DIAGRAM)))
 assert len(FWD_STEPS) <= k_c and FWD_STEPS[-1] == T_MAIN
 xa, xb = x0_a[0, 0].numpy(), x0_b[0, 0].numpy()
 eps = shared_eps()
@@ -172,11 +138,10 @@ def forward(x0, s):
     return x0 if s == 0 else np.sqrt(ab[s - 1]) * x0 + np.sqrt(1 - ab[s - 1]) * eps
 
 
-# Sizes in inches so that the diagram block and the examples block share the same columns.
 W, LEFT, RIGHT, WS = 16.0, 0.03, 0.97, 0.3
 cell = W * (RIGHT - LEFT) / (n_cols + (n_cols - 1) * WS)
 HS_TOP, HS_EX = 0.55, 0.12
-n_top = 3 + len(REV_SNAPS)  # forward, blend, reverse snapshots, results
+n_top = 3 + len(REV_SNAPS)
 n_ex = len(EXTRA_PAIRS)
 top_h = cell * (n_top + (n_top - 1) * HS_TOP)
 ex_h = cell * (n_ex + (n_ex - 1) * HS_EX) if n_ex else 0
@@ -195,7 +160,6 @@ def arrow(ax1, xy1, ax2, xy2, color=MUTED):
 
 
 def note(ax, x, y, step, text, ha="left", color=INK):
-    """Step label next to an axis: a bold number and a short explanation."""
     ax.text(x, y, (rf"$\bf{{{step}}}$   " if step else "") + text, transform=ax.transAxes, ha=ha,
             va="center", fontsize=16, color=color, linespacing=1.5)
 

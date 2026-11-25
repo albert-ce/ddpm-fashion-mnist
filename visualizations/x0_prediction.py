@@ -1,24 +1,3 @@
-"""
-When does the model "know" which image it will generate?
-
-Along the generation trajectories saved by sample_trajectories.py, at every saved frame the model's
-prediction of the final image is computed from its noise prediction,
-    x0_hat = (x_t - sqrt(1 - ab_t) eps_hat) / sqrt(ab_t),
-clipped to the image range [-1, 1], and compared with the image that trajectory actually ends at.
-There is no ground truth x_0 inside a generation, so "the image it ends at" is the reference: the
-curve says how early the final image is already decided.
-
-Clipping matters at large t: x0_hat divides by sqrt(ab_t) (~0.006 at t = 1000), which amplifies any
-error in eps_hat by up to ~160; the true images are in [-1, 1], so clipping removes that artifact.
-
-Frame t of trajectories.pt is the output of loop step t of sample(), i.e. the input of loop step
-t - 1, so it is fed to the model with timestep t - 1 and alphas_cumprod[t - 1].
-
-The dashed reference is the error of predicting the mean final image, i.e. knowing nothing about
-the trajectory. The numbers (and the x0_hat of the samples shown) are cached in CACHE_PATH; delete
-it to recompute. Writes figures/analysis/x0_prediction_slide.png.
-"""
-
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -26,20 +5,20 @@ import numpy as np
 import torch
 from diffusers import UNet2DModel
 
-ROOT = Path(__file__).resolve().parent.parent  # repository root (this file is in visualizations/)
+ROOT = Path(__file__).resolve().parent.parent
 MODEL_DIR = ROOT / "trained-diffusion-model-fashion-mnist"
 TRAJECTORIES_PATH = ROOT / "trajectories.pt"
 OUT_PATH = ROOT / "figures" / "analysis" / "x0_prediction_slide.png"
 CACHE_PATH = ROOT / "cache" / "x0_prediction.npz"
-N_EVAL = 200  # trajectories used for the curve (~44 images/s on CPU)
+N_EVAL = 200
 BATCH_SIZE = 200
-FRAMES = [1000, 700, 500, 300, 240, 200, 100, 20]  # columns A-H (multiples of the saved snapshot_every)
-SAMPLES = [0, 1, 2]  # trajectories shown below the curve (must be < N_EVAL)
+FRAMES = [1000, 700, 500, 300, 240, 200, 100, 20]
+SAMPLES = [0, 1, 2]
 BLUE, ORANGE, INK, MUTED, GRID = "#2a78d6", "#eb6834", "#0b0b0b", "#52514e", "#e4e3df"
 
 traj = torch.load(TRAJECTORIES_PATH, weights_only=False)
 frame_t = traj["timesteps"].tolist()  # 1000, 980, ..., 20, 0
-final = traj["x"][frame_t.index(0), :N_EVAL].float()  # (N_EVAL, 1, 28, 28), the generated images
+final = traj["x"][frame_t.index(0), :N_EVAL].float()
 
 
 def compute():
@@ -49,9 +28,9 @@ def compute():
     model = UNet2DModel.from_pretrained(MODEL_DIR).to(device).eval()
 
     ts = [t for t in frame_t if t > 0]
-    err = np.empty(len(ts))  # mean per-pixel MSE(clip(x0_hat), final)
+    err = np.empty(len(ts))
     err_noclip = np.empty(len(ts))
-    shown = np.empty((len(ts), len(SAMPLES), 28, 28), dtype=np.float32)  # clipped x0_hat of SAMPLES
+    shown = np.empty((len(ts), len(SAMPLES), 28, 28), dtype=np.float32)
     with torch.no_grad():
         for i, t in enumerate(ts):
             ab = alphas_cumprod[t - 1]
@@ -87,8 +66,7 @@ def to_img(x):
     return (np.clip(x, -1, 1) + 1) / 2
 
 
-# Figure: curve on top, then for each sample a row of x_t and a row of x0_hat at the frames A-H,
-# plus a last column with the image the trajectory ends at.
+# Figure
 n_cols = len(FRAMES) + 1
 fig = plt.figure(figsize=(16, 15.5))
 gs = fig.add_gridspec(1 + 2 * len(SAMPLES), n_cols,
